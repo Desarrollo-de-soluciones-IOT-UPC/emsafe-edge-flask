@@ -40,8 +40,8 @@ class CloudSyncService:
         self._token = (data.get("data") or {}).get("token")
         return self._token
 
-    def sync_reading(self, serial_number, level, message, field_ut) -> bool:
-        """Reenvia la lectura al backend. Devuelve True si se sincronizo."""
+    def sync_reading(self, serial_number, level, message, field_ut, plug=None) -> bool:
+        """Reenvia la lectura al backend (incluye el estado del rele). True si se sincronizo."""
         if not CLOUD["enabled"]:
             return False
         payload = {
@@ -49,6 +49,7 @@ class CloudSyncService:
             "level": level,
             "message": message,
             "field_uT": field_ut,
+            "plug": plug,
         }
         url = CLOUD["base_url"] + CLOUD["ingest_path"]
         try:
@@ -67,3 +68,21 @@ class CloudSyncService:
             # Resiliencia: si la nube falla, el edge sigue (dato ya guardado local)
             print(f"[EDGE][SYNC] fallo al sincronizar con la nube: {e}")
             return False
+
+    def fetch_desired_plug(self, serial_number):
+        """Consulta al backend el estado DESEADO del rele (orden del usuario desde
+        la app: ON/OFF). Camino de vuelta mobile -> backend -> edge -> dispositivo.
+        Endpoint publico (sin JWT). Devuelve "ON" | "OFF" | None."""
+        if not CLOUD["enabled"]:
+            return None
+        url = f"{CLOUD['base_url']}/api/v1/devices/{serial_number}/plug"
+        try:
+            resp = requests.get(url, timeout=10)
+            if resp.status_code != 200:
+                return None
+            data = resp.json()
+            # Respuesta envuelta: ApiResponse -> data -> desiredPlug
+            return (data.get("data") or {}).get("desiredPlug")
+        except Exception as e:
+            print(f"[EDGE][SYNC] fallo al consultar desired plug: {e}")
+            return None

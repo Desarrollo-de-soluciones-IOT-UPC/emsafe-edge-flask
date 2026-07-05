@@ -1,0 +1,52 @@
+{
+  "version": 1,
+  "author": "Gauss - EmSafe",
+  "editor": "wokwi",
+  "parts": [
+    { "type": "wokwi-breadboard", "id": "bb1", "top": 304.2, "left": -448.4, "attrs": {} },
+    { "type": "board-esp32-devkit-c-v4", "id": "esp", "top": 76.8, "left": 33.64, "attrs": {} },
+    { "type": "wokwi-rgb-led", "id": "rgb1", "top": 6.0, "left": -201.6, "attrs": { "common": "cathode" } },
+    {
+      "type": "wokwi-resistor",
+      "id": "rR",
+      "top": 177.6,
+      "left": -245,
+      "rotate": 90,
+      "attrs": { "value": "220" }
+    },
+    {
+      "type": "wokwi-resistor",
+      "id": "rG",
+      "top": 177.6,
+      "left": -190,
+      "rotate": 90,
+      "attrs": { "value": "220" }
+    },
+    {
+      "type": "wokwi-resistor",
+      "id": "rB",
+      "top": 177.6,
+      "left": -135,
+      "rotate": 90,
+      "attrs": { "value": "220" }
+    },
+    { "type": "chip-a3144-hall", "id": "chip1", "top": 346.62, "left": 235.2, "attrs": {} }
+  ],
+  "connections": [
+    [ "esp:TX", "$serialMonitor:RX", "", [] ],
+    [ "esp:RX", "$serialMonitor:TX", "", [] ],
+    [ "esp:3V3", "bb1:tp.36", "red", [ "h0" ] ],
+    [ "esp:GND.1", "bb1:tn.37", "cyan", [ "h0" ] ],
+    [ "chip1:OUT", "esp:34", "green", [ "v-134.4", "h-161.39", "v-76.8" ] ],
+    [ "chip1:VCC", "bb1:tp.41", "red", [ "h0" ] ],
+    [ "chip1:GND", "bb1:tn.42", "cyan", [ "h0" ] ],
+    [ "rgb1:R", "rR:1", "red", [ "v0" ] ],
+    [ "rR:2", "esp:27", "red", [ "h0" ] ],
+    [ "rgb1:G", "rG:1", "green", [ "v0" ] ],
+    [ "rG:2", "esp:25", "green", [ "h0" ] ],
+    [ "rgb1:B", "rB:1", "blue", [ "v0" ] ],
+    [ "rB:2", "esp:26", "blue", [ "h0" ] ],
+    [ "rgb1:COM", "bb1:tn.20", "cyan", [ "v0" ] ]
+  ],
+  "dependencies": {}
+}

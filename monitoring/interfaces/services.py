@@ -33,9 +33,11 @@ def create_emf_reading():
         return jsonify({"error": "Missing device_id or field_uT"}), 400
 
     try:
-        saved, synced = service.create_reading(
+        saved, synced, desired_plug = service.create_reading(
             serial, field_ut, plug, created_at, request.headers.get("X-API-Key")
         )
+        # desiredPlug viaja en la respuesta: el dispositivo puede leerla en el
+        # mismo ciclo POST y accionar el rele (orden del usuario desde la app).
         return jsonify({
             "id": saved.id,
             "serialNumber": saved.serial_number,
@@ -43,6 +45,7 @@ def create_emf_reading():
             "level": saved.level,
             "message": saved.message,
             "plug": saved.plug,
+            "desiredPlug": desired_plug,
             "syncedToCloud": synced,
             "created_at": saved.created_at.isoformat(),
         }), 201
