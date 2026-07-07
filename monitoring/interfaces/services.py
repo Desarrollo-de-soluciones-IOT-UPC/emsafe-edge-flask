@@ -8,7 +8,11 @@ monitoring_api = Blueprint("monitoring_api", __name__)
 service = EmfMonitoringApplicationService()
 
 
+# Ruta canónica + alias histórico del firmware. El sketch congelado postea a
+# `/api/v1/data_records` (guion-bajo); ambas rutas caen en el mismo handler para
+# no acoplarnos al firmware ni tener que re-flashear para cambiar el path.
 @monitoring_api.route("/api/v1/emf-monitoring/data-records", methods=["POST"])
+@monitoring_api.route("/api/v1/data_records", methods=["POST"])
 def create_emf_reading():
     """Ingesta de una lectura EMF enviada por el dispositivo (ESP32).
 
