@@ -1,4 +1,4 @@
-"""Sincronizacion con el backend en la nube (Azure).
+"""Sincronizacion con el backend en la nube (Oracle Cloud).
 
 Tras procesar y persistir localmente, el edge reenvia la lectura al backend
 real usando el endpoint de ingesta que ya existe: POST /api/v1/readings.
@@ -15,7 +15,7 @@ CLOUD = {
     "enabled": os.getenv("EMSAFE_SYNC_ENABLED", "false").lower() == "true",
     "base_url": os.getenv(
         "EMSAFE_BACKEND_URL",
-        "https://emsafe-backend-hmf7asgja0d0h4cr.centralus-01.azurewebsites.net",
+        "https://emsafe.duckdns.org",
     ),
     "login_path": "/api/auth/login",
     "ingest_path": "/api/v1/readings",
