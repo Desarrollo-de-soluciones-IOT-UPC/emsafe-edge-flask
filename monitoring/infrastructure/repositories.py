@@ -6,18 +6,16 @@ from monitoring.infrastructure.models import EmfReading as EmfReadingModel
 class EmfReadingRepository:
     @staticmethod
     def save(reading: EmfReading) -> EmfReading:
+        """Guarda la lectura y le devuelve su identidad (E-2)."""
         row = EmfReadingModel.create(
             serial_number=reading.serial_number,
             field_ut=reading.field_ut,
-            level=reading.level,
+            level=reading.level_name,
             message=reading.message,
             plug=reading.plug,
             created_at=reading.created_at,
         )
-        return EmfReading(
-            reading.serial_number, reading.field_ut, reading.level,
-            reading.message, reading.plug, reading.created_at, row.id,
-        )
+        return reading.assign_identity(row.id)
 
     @staticmethod
     def latest(serial_number=None, limit=50):
@@ -26,6 +24,6 @@ class EmfReadingRepository:
             q = q.where(EmfReadingModel.serial_number == serial_number)
         q = q.limit(limit)
         return [
-            EmfReading(r.serial_number, r.field_ut, r.level, r.message, r.plug, r.created_at, r.id)
+            EmfReading.restore(r.id, r.serial_number, r.field_ut, r.level, r.plug, r.created_at)
             for r in q
         ]

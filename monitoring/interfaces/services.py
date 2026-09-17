@@ -46,7 +46,7 @@ def create_emf_reading():
             "id": saved.id,
             "serialNumber": saved.serial_number,
             "field_uT": saved.field_ut,
-            "level": saved.level,
+            "level": saved.level_name,
             "message": saved.message,
             "plug": saved.plug,
             "desiredPlug": desired_plug,
@@ -66,7 +66,7 @@ def list_emf_readings():
     return jsonify([
         {
             "id": r.id, "serialNumber": r.serial_number, "field_uT": r.field_ut,
-            "level": r.level, "message": r.message, "plug": r.plug,
+            "level": r.level_name, "message": r.message, "plug": r.plug,
             "created_at": r.created_at.isoformat() if hasattr(r.created_at, "isoformat") else str(r.created_at),
         }
         for r in readings

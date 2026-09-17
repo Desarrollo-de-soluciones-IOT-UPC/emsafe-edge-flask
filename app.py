@@ -9,6 +9,8 @@ Uso:
     # o
     python app.py
 """
+import os
+
 from flask import Flask, jsonify
 
 import iam.application.services
@@ -39,4 +41,8 @@ def health():
 
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000, debug=True)
+    # debug apagado por defecto: el debugger de Werkzeug expone una consola que
+    # permite ejecutar codigo arbitrario en el equipo del edge. Para depurar:
+    #   set EMSAFE_EDGE_DEBUG=true   (nunca en una demo ni en el prototipo fisico)
+    debug = os.getenv("EMSAFE_EDGE_DEBUG", "false").lower() == "true"
+    app.run(host="0.0.0.0", port=5000, debug=debug)

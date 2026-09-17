@@ -12,8 +12,42 @@ ESP32  -->  EDGE (Flask, local)  -->  Backend Azure  -->  Web/App
 ## Bounded contexts
 - **iam/** — autentica al dispositivo por API key (`X-API-Key`).
 - **monitoring/** — recibe el `field_uT`, **clasifica el nivel de alerta (SAFE/CAUTION/DANGER)**
-  en el domain service, persiste en SQLite y **sincroniza** al backend de Azure.
+  con el VO `AlertLevel`, persiste en SQLite y **sincroniza** con la nube por el puerto
+  `CloudSyncPort`.
 - **shared/** — base de datos SQLite compartida (Peewee).
+
+### Capas de `monitoring/`
+```
+domain/         value_objects.py  MagneticField · AlertLevel  (los umbrales viven aquí)
+                entities.py       EmfReading (aggregate root)
+                services.py       EmfReadingService — convierte el dato crudo en lectura
+                ports.py          CloudSyncPort (puerto de salida)
+application/    EmfMonitoringApplicationService — el caso de uso de ingesta
+infrastructure/ repositories.py (SQLite) · cloud_sync.py (adaptador del puerto)
+interfaces/     los endpoints REST
+```
+
+## Context map: edge ↔ nube
+
+Los dos lados usan **los mismos nombres de contexto** (`iam`, `monitoring`) y el mismo
+lenguaje: `MagneticField`↔`value` en µT, `AlertLevel`↔`RadiationLevel`,
+`EmfReading`↔`RadiationReading`.
+
+La relación es **Conformist**: el edge se adapta al contrato que publica el backend
+(`POST /api/v1/readings`, `GET /api/v1/devices/{serial}/plug`, respuestas envueltas en
+`ApiResponse`) sin negociarlo ni traducirlo. Toda esa conformidad está encapsulada en
+`monitoring/infrastructure/cloud_sync.py`, que es el único archivo que cambia si el
+backend cambia su API.
+
+**Quién manda en el nivel de alerta:** el edge. Los umbrales (100 / 200 µT) están en
+`monitoring/domain/value_objects.py`. El backend tiene los mismos números en
+`RadiationLevel`, pero **no reclasifica**: respeta el nivel que llega y solo clasifica
+por valor cuando la lectura viene sin nivel (datos antiguos o de semilla). Si los
+umbrales cambian, se cambian en el edge.
+
+El firmware (`firmware/sketch.ino`) tiene su propia copia de los umbrales, y eso es
+correcto: necesita encender el LED y cortar el relé **sin red**. Su decisión es local e
+inmediata; la alerta oficial del sistema la emite el edge.
 
 ## Requisitos
 - Python 3.10+
@@ -34,6 +68,10 @@ pip install -r requirements.txt
 python app.py
 ```
 Arranca en `http://localhost:5000`.
+
+> El modo debug de Flask va **apagado** por defecto: su consola permite ejecutar código
+> arbitrario en el equipo del edge. Para depurar, `set EMSAFE_EDGE_DEBUG=true` — nunca
+> en una demo ni en el prototipo físico.
 
 > En IntelliJ: abre la carpeta, configura un intérprete de Python (con el venv),
 > y dale Run a `app.py`.

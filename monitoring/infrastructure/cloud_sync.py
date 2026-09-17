@@ -6,10 +6,15 @@ Se autentica con JWT (POST /api/auth/login).
 
 Por defecto el sync esta DESACTIVADO para que el edge corra sin depender de
 la nube. Ponlo en True (o via variables de entorno) cuando quieras sincronizar.
+
+Este modulo es el ADAPTADOR del puerto `CloudSyncPort` (E-3): todo lo que es HTTP
+—URLs, JWT, reintento por 401, forma del payload— vive aqui y solo aqui.
 """
 import os
 
 import requests
+
+from monitoring.domain.ports import CloudSyncPort
 
 CLOUD = {
     "enabled": os.getenv("EMSAFE_SYNC_ENABLED", "false").lower() == "true",
@@ -25,7 +30,7 @@ CLOUD = {
 }
 
 
-class CloudSyncService:
+class CloudSyncService(CloudSyncPort):
     def __init__(self):
         self._token = None
 
@@ -40,16 +45,21 @@ class CloudSyncService:
         self._token = (data.get("data") or {}).get("token")
         return self._token
 
-    def sync_reading(self, serial_number, level, message, field_ut, plug=None) -> bool:
-        """Reenvia la lectura al backend (incluye el estado del rele). True si se sincronizo."""
+    def sync_reading(self, reading) -> bool:
+        """Reenvia la lectura al backend (incluye el estado del rele). True si se sincronizo.
+
+        Recibe la entidad entera y no cinco parametros sueltos: el mapeo al payload de
+        la nube es justo lo que este adaptador debe saber, y asi anadir un campo no
+        cambia la firma del puerto.
+        """
         if not CLOUD["enabled"]:
             return False
         payload = {
-            "serialNumber": serial_number,
-            "level": level,
-            "message": message,
-            "field_uT": field_ut,
-            "plug": plug,
+            "serialNumber": reading.serial_number,
+            "level": reading.level_name,
+            "message": reading.message,
+            "field_uT": reading.field_ut,
+            "plug": reading.plug,
         }
         url = CLOUD["base_url"] + CLOUD["ingest_path"]
         try:

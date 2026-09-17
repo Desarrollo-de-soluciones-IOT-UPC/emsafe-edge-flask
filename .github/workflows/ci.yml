@@ -1,0 +1,81 @@
+# CI del edge: compila los módulos y comprueba que la clasificación de niveles
+# sigue siendo la misma que en el backend, la web y el móvil.
+
+name: CI — Edge
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Compilar y verificar umbrales
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configurar Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+
+      - name: Instalar dependencias
+        run: pip install -r requirements.txt
+
+      # Python no compila al arrancar: sin esto, un error de sintaxis en un
+      # módulo que solo se importa bajo demanda no aparece hasta producción.
+      - name: Compilar todos los módulos
+        run: python -m compileall -q app.py iam monitoring shared
+
+      # El edge es la AUTORIDAD de la clasificación: el backend, la web y el
+      # móvil respetan el nivel que decide aquí. Si estos umbrales cambian sin
+      # cambiar los otros tres stacks, se repite el bug de las escalas mezcladas
+      # (µSv/h vs µT) que ponía todas las lecturas en rojo.
+      - name: Verificar la regla de clasificación
+        run: |
+          python - <<'PY'
+          from monitoring.domain.value_objects import (
+              AlertLevel, MagneticField, CAUTION_UT, DANGER_UT,
+          )
+
+          assert CAUTION_UT == 100.0, f"umbral caution cambiado: {CAUTION_UT}"
+          assert DANGER_UT == 200.0, f"umbral danger cambiado: {DANGER_UT}"
+
+          def nivel(uT):
+              return AlertLevel.for_field(MagneticField.from_raw(uT)).wire_value
+
+          assert nivel(45.2) == "SAFE"
+          assert nivel(99.99) == "SAFE"
+          assert nivel(100.0) == "CAUTION"     # frontera exacta
+          assert nivel(150.7) == "CAUTION"
+          assert nivel(200.0) == "DANGER"      # frontera exacta
+          assert nivel(250.4) == "DANGER"
+
+          # El VO no puede existir con un valor invalido.
+          for malo in (-1, "abc", None):
+              try:
+                  MagneticField.from_raw(malo)
+              except ValueError:
+                  pass
+              else:
+                  raise AssertionError(f"{malo!r} deberia haber sido rechazado")
+
+          # Cada nivel arrastra su mensaje: no se devuelven por separado.
+          for level in AlertLevel:
+              assert level.message, f"{level.name} sin mensaje"
+
+          print("OK — umbrales y clasificacion intactos")
+          PY
+
+      # El debugger de Werkzeug permite ejecutar codigo arbitrario en el equipo
+      # del edge, que esta en la misma red que el prototipo fisico.
+      - name: Comprobar que el modo debug no esta fijado a True
+        run: |
+          if grep -nE 'app\.run\(.*debug\s*=\s*True' app.py; then
+            echo "::error file=app.py::debug=True fijo en el codigo (usar EMSAFE_EDGE_DEBUG)"
+            exit 1
+          fi
+          echo "OK — debug gobernado por variable de entorno"
