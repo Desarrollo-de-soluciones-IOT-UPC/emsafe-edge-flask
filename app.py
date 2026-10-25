@@ -9,6 +9,8 @@ Uso:
     # o
     python app.py
 """
+import os
+
 from flask import Flask, jsonify
 
 import iam.application.services
@@ -38,5 +40,18 @@ def health():
     return jsonify({"status": "UP", "service": "emsafe-edge"})
 
 
+def _debug_enabled() -> bool:
+    """Modo debug gobernado por entorno, apagado por defecto.
+
+    Estaba fijo a `debug=True`, y combinado con `host=0.0.0.0` dejaba el
+    debugger de Werkzeug accesible a toda la red local: permite ejecutar codigo
+    arbitrario en el equipo del edge, que esta en la misma red que el prototipo
+    (y detras de un tunel ngrok cuando se prueba con Wokwi).
+
+    Para depurar:  EMSAFE_EDGE_DEBUG=true python app.py
+    """
+    return os.getenv("EMSAFE_EDGE_DEBUG", "").strip().lower() in ("1", "true", "yes")
+
+
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000, debug=True)
+    app.run(host="0.0.0.0", port=5000, debug=_debug_enabled())
